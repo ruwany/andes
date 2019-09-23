@@ -7,7 +7,7 @@
  *  Proprietary and confidential.
  */
 
-package org.entgra.publishers.http;
+package org.dna.mqtt.moquette.messaging.spi.impl.publishers.http;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -41,7 +41,7 @@ public class AsyncHTTPStatusPublisher implements Runnable{
     public void notifyDeviceStatus() {
         try {
             //TODO: Get endpoint from config file
-            String url = "https://localhost:8080/dashboard/api/events/device-status/" + tenantDomain + "/" +
+            String url = "http://localhost:8080/dashboard/api/events/device-status/" + tenantDomain + "/" +
                          deviceType + "/" + deviceId + "/" + status;
             HttpURLConnection urlConnection =
                     (HttpURLConnection) new URL(url).openConnection();

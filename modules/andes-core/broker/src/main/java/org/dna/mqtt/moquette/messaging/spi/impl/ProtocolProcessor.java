@@ -35,7 +35,7 @@ import org.dna.mqtt.moquette.server.ServerChannel;
 import org.dna.mqtt.moquette.server.netty.exception.MQTTInitializationException;
 import org.dna.mqtt.wso2.AndesMQTTBridge;
 import org.dna.mqtt.wso2.MqttLogExceptionHandler;
-import org.entgra.publishers.http.AsyncHTTPStatusPublisher;
+import org.dna.mqtt.moquette.messaging.spi.impl.publishers.http.AsyncHTTPStatusPublisher;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.configuration.enums.MQTTAuthoriztionPermissionLevel;
@@ -47,19 +47,12 @@ import org.wso2.andes.mqtt.MQTTAuthorizationSubject;
 import org.wso2.andes.mqtt.MQTTException;
 import org.wso2.andes.mqtt.utils.MQTTUtils;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 
 import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_DELIVERY_BUFFER_SIZE;
@@ -198,7 +191,7 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
             log.debug("processConnect for client " + msg.getClientID());
         }
 
-        if (msg.getProcotolVersion() != Utils.VERSION_3_1 && msg.getProcotolVersion() != Utils.VERSION_3_1_1) {
+            if (msg.getProcotolVersion() != Utils.VERSION_3_1 && msg.getProcotolVersion() != Utils.VERSION_3_1_1) {
             ConnAckMessage badProto = new ConnAckMessage();
             badProto.setReturnCode(ConnAckMessage.UNNACEPTABLE_PROTOCOL_VERSION);
             log.warn("processConnect sent bad proto ConnAck");
