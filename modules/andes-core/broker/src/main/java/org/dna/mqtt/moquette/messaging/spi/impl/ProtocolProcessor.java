@@ -35,6 +35,7 @@ import org.dna.mqtt.moquette.server.ServerChannel;
 import org.dna.mqtt.moquette.server.netty.exception.MQTTInitializationException;
 import org.dna.mqtt.wso2.AndesMQTTBridge;
 import org.dna.mqtt.wso2.MqttLogExceptionHandler;
+import org.entgra.publishers.http.AsyncHTTPStatusPublisher;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.configuration.enums.MQTTAuthoriztionPermissionLevel;
@@ -46,12 +47,19 @@ import org.wso2.andes.mqtt.MQTTAuthorizationSubject;
 import org.wso2.andes.mqtt.MQTTException;
 import org.wso2.andes.mqtt.utils.MQTTUtils;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 
 import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_DELIVERY_BUFFER_SIZE;
@@ -69,6 +77,8 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     private IStorageService m_storageService;
     private IAuthenticator m_authenticator;
     private IAuthorizer m_authorizer;
+
+    ExecutorService executor;
 
     /**
      * Keeps client data in memory for authorization of publishing and subscribing later. <ClientID, AuthData>
@@ -106,6 +116,8 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     void init(SubscriptionsStore subscriptions, IStorageService storageService,
               IAuthenticator authenticator) {
         //m_clientIDs = clientIDs;
+        //TODO: Get executor Threadpool Size from Config
+        executor = Executors.newFixedThreadPool(50);
         this.subscriptions = subscriptions;
         m_authenticator = authenticator;
         m_storageService = storageService;
@@ -196,6 +208,9 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         }
 
         if (msg.getClientID() == null || msg.getClientID().length() == 0) {
+            //TODO: add flag to check if Message Status Publishing is enabled/disabled
+            String clientId = msg.getClientID();
+            notifyClientState(clientId, "ACTIVE");
             ConnAckMessage okResp = new ConnAckMessage();
             okResp.setReturnCode(ConnAckMessage.IDENTIFIER_REJECTED);
             session.write(okResp);
@@ -304,6 +319,31 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         if (!msg.isCleanSession()) {
             //force the republish of stored QoS1 and QoS2
             republishStored(msg.getClientID());
+        }
+    }
+
+    private void notifyClientState(String clientId, String state) {
+        //Reference Client ID : <prefix>/<tenant_domain>/<device_type>/<device_identifier>
+        //TODO: Obtain prefix from config
+        String prefix = "fpd";
+        if(clientId.startsWith(prefix)){
+            String[] clientInfo = clientId.split("/");
+            if(clientInfo.length > 4){
+                String tenantDomain = clientInfo[1];
+                String deviceType = clientInfo[2];
+                String deviceId = clientInfo[3];
+
+                //TODO : Make Async Call to Backend Picked up from Config
+                String username = "admin";
+                String password = "admin";
+                executor.submit(new AsyncHTTPStatusPublisher(tenantDomain, deviceType, deviceId, state, username, password));
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Supplied Client ID does not match desired template " +
+                              "expected : <prefix>/<tenant_domain>/<device_type>/<device_identifier> received : " + clientId);
+                }
+            }
+
         }
     }
 
@@ -715,6 +755,8 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     }
 
     void processDisconnect(ServerChannel session, String clientID, boolean cleanSession) throws InterruptedException {
+
+        notifyClientState(clientID, "INACTIVE");
 
         String username = authSubjects.get(clientID).getUsername();
         removeAuthorizationSubject(clientID);
