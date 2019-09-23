@@ -209,8 +209,6 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
 
         if (msg.getClientID() == null || msg.getClientID().length() == 0) {
             //TODO: add flag to check if Message Status Publishing is enabled/disabled
-            String clientId = msg.getClientID();
-            notifyClientState(clientId, "ACTIVE");
             ConnAckMessage okResp = new ConnAckMessage();
             okResp.setReturnCode(ConnAckMessage.IDENTIFIER_REJECTED);
             session.write(okResp);
@@ -234,6 +232,8 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
             forciblyClosedChannels.put(msg.getClientID(), oldSession);
         }
 
+        String clientId = msg.getClientID();
+        notifyClientState(clientId, "ACTIVE");
         ConnectionDescriptor connDescr = new ConnectionDescriptor(msg.getClientID(), session, msg.isCleanSession());
         m_clientIDs.put(msg.getClientID(), connDescr);
 
