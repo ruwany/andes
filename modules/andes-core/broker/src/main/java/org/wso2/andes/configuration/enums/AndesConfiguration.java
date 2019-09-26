@@ -208,6 +208,15 @@ public enum AndesConfiguration implements ConfigurationProperty {
     TRANSPORTS_MQTT_DELIVERY_BUFFER_SIZE("transports/mqtt/deliveryBufferSize", "32768", Integer.class),
 
     /**
+     * Enable this to support mqtt notifications based on mqtt connect/disconnect.
+     */
+    TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION("transports/mqtt/notifyConnectivityStatus/@enabled", "false", Boolean.class),
+    TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX("transports/mqtt/notifyConnectivityStatus/endpoint/clientPrefix", "", String.class),
+    TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL("transports/mqtt/notifyConnectivityStatus/endpoint/url", "", String.class),
+    TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME("transports/mqtt/notifyConnectivityStatus/endpoint/username", "", String.class),
+    TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD("transports/mqtt/notifyConnectivityStatus/endpoint/password", "", String.class),
+
+    /**
      * This is a temporary list of user elements to enable user-authentication for MQTT.
      */
     LIST_TRANSPORTS_MQTT_USERNAMES("transports/mqtt/users/user/@userName", "",

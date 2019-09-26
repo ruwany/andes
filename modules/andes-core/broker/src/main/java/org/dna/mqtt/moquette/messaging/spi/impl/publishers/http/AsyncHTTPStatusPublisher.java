@@ -19,6 +19,7 @@ import java.net.URL;
 
 public class AsyncHTTPStatusPublisher implements Runnable{
 
+    private String endpoint;
     private String tenantDomain;
     private String deviceType;
     private String deviceId;
@@ -28,8 +29,9 @@ public class AsyncHTTPStatusPublisher implements Runnable{
 
     private static Log log = LogFactory.getLog(AsyncHTTPStatusPublisher.class);
 
-    public AsyncHTTPStatusPublisher(String tenantDomain, String deviceType, String deviceId, String status,
+    public AsyncHTTPStatusPublisher(String endpoint, String tenantDomain, String deviceType, String deviceId, String status,
                                     String username, String password){
+        this.endpoint = endpoint;
         this.tenantDomain = tenantDomain;
         this.deviceType = deviceType;
         this.deviceId = deviceId;
@@ -41,7 +43,7 @@ public class AsyncHTTPStatusPublisher implements Runnable{
     public void notifyDeviceStatus() {
         try {
             //TODO: Get endpoint from config file
-            String url = "http://localhost:8080/dashboard/api/events/device-status/" + tenantDomain + "/" +
+            String url = endpoint  + "/" + tenantDomain + "/" +
                          deviceType + "/" + deviceId + "/" + status;
             HttpURLConnection urlConnection =
                     (HttpURLConnection) new URL(url).openConnection();
@@ -53,11 +55,12 @@ public class AsyncHTTPStatusPublisher implements Runnable{
 
             try (InputStreamReader response = new InputStreamReader(urlConnection.getInputStream())) {
                 // convert to Object
-                log.info("Published Device Status " +
+                log.info("Published Client Connectivity Status " +
                          "Response-Code : " + urlConnection.getResponseCode() + " Message : " + response);
             }
 
         } catch (IOException e ) {
+            log.error("Error while Publishing Connectivity Information ", e);
             throw new RuntimeException(e);
         }
     }

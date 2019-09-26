@@ -59,6 +59,13 @@ import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_M
 import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_USER_AUTHENTICATION;
 import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_USER_AUTHORIZATION;
 
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD;
+
+
 public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandler {
 
     private static Log log = LogFactory.getLog(ProtocolProcessor.class);
@@ -92,6 +99,11 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     private boolean isAuthenticationRequired;
 
     /**
+     * MQTT Connectivity Status Publishing enable/disable
+     */
+    private boolean isMqttConnectivityStatsPublishing;
+
+    /**
      * Indicates (via configuration) that server should check authorization before providing the access.
      */
     private boolean isAuthorizationRequired;
@@ -119,6 +131,9 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
                 MQTTUserAuthenticationScheme.REQUIRED;
         isAuthorizationRequired = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_USER_AUTHORIZATION) ==
                 MQTTUserAuthorizationScheme.REQUIRED;
+
+        isMqttConnectivityStatsPublishing = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION);
+
         //Initialize Authorization
         if (isAuthorizationRequired) {
             String authorizerClassName = AndesConfigurationManager.readValue(
@@ -226,7 +241,9 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         }
 
         String clientId = msg.getClientID();
-        notifyClientState(clientId, "ACTIVE");
+        if(isMqttConnectivityStatsPublishing) {
+            notifyClientState(clientId, "ACTIVE");
+        }
         ConnectionDescriptor connDescr = new ConnectionDescriptor(msg.getClientID(), session, msg.isCleanSession());
         m_clientIDs.put(msg.getClientID(), connDescr);
 
@@ -318,7 +335,7 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     private void notifyClientState(String clientId, String state) {
         //Reference Client ID : <prefix>/<tenant_domain>/<device_type>/<device_identifier>
         //TODO: Obtain prefix from config
-        String prefix = "fpd";
+        String prefix = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX);
         if(clientId.startsWith(prefix)){
             String[] clientInfo = clientId.split("/");
             if(clientInfo.length > 4){
@@ -327,9 +344,10 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
                 String deviceId = clientInfo[3];
 
                 //TODO : Make Async Call to Backend Picked up from Config
-                String username = "admin";
-                String password = "admin";
-                executor.submit(new AsyncHTTPStatusPublisher(tenantDomain, deviceType, deviceId, state, username, password));
+                String url = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL);
+                String username = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME);
+                String password = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD);
+                executor.submit(new AsyncHTTPStatusPublisher(url, tenantDomain, deviceType, deviceId, state, username, password));
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("Supplied Client ID does not match desired template " +
@@ -749,8 +767,9 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
 
     void processDisconnect(ServerChannel session, String clientID, boolean cleanSession) throws InterruptedException {
 
-        notifyClientState(clientID, "INACTIVE");
-
+        if(isMqttConnectivityStatsPublishing) {
+            notifyClientState(clientID, "INACTIVE");
+        }
         String username = authSubjects.get(clientID).getUsername();
         removeAuthorizationSubject(clientID);
 
