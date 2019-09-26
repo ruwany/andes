@@ -9,6 +9,7 @@
 
 package org.dna.mqtt.moquette.messaging.spi.impl.publishers.http;
 
+import com.google.gson.JsonObject;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -16,6 +17,7 @@ import sun.nio.ch.IOUtil;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -44,16 +46,27 @@ public class AsyncHTTPStatusPublisher implements Runnable{
 
     public void notifyDeviceStatus() {
         try {
-            //TODO: Get endpoint from config file
-            String url = endpoint  + "/" + tenantDomain + "/" +
-                         deviceType + "/" + deviceId + "/" + status;
+            JsonObject jsonObject = new JsonObject();
+            jsonObject.addProperty("tenantDomain", tenantDomain);
+            jsonObject.addProperty("deviceType", deviceType);
+            jsonObject.addProperty("deviceId", deviceId);
+            jsonObject.addProperty("status", status);
+
             HttpURLConnection urlConnection =
-                    (HttpURLConnection) new URL(url).openConnection();
+                    (HttpURLConnection) new URL(endpoint).openConnection();
 
             urlConnection.setRequestMethod("PUT");
-            byte[] message = (username+":"+password).getBytes("UTF-8");
-            String encoded = javax.xml.bind.DatatypeConverter.printBase64Binary(message);
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            urlConnection.setDoOutput(true);
+            urlConnection.setDoInput(true);
+            byte[] basicAuthHeader = (username+":"+password).getBytes("UTF-8");
+            String encoded = javax.xml.bind.DatatypeConverter.printBase64Binary(basicAuthHeader);
             urlConnection.setRequestProperty("Authorization", "Basic "+encoded);
+
+            OutputStreamWriter writer = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
+            writer.write(jsonObject.toString());
+            writer.close();
 
             try (InputStreamReader response = new InputStreamReader(urlConnection.getInputStream())) {
                 // convert to Object
