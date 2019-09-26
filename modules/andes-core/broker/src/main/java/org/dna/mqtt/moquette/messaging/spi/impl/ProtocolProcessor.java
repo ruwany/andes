@@ -338,7 +338,7 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         String prefix = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX);
         if(clientId.startsWith(prefix)){
             String[] clientInfo = clientId.split("/");
-            if(clientInfo.length > 4){
+            if(clientInfo.length >= 4){
                 String tenantDomain = clientInfo[1];
                 String deviceType = clientInfo[2];
                 String deviceId = clientInfo[3];

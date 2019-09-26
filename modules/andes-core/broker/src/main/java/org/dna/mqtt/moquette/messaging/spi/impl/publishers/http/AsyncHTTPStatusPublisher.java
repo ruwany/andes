@@ -9,8 +9,10 @@
 
 package org.dna.mqtt.moquette.messaging.spi.impl.publishers.http;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import sun.nio.ch.IOUtil;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -56,7 +58,7 @@ public class AsyncHTTPStatusPublisher implements Runnable{
             try (InputStreamReader response = new InputStreamReader(urlConnection.getInputStream())) {
                 // convert to Object
                 log.info("Published Client Connectivity Status " +
-                         "Response-Code : " + urlConnection.getResponseCode() + " Message : " + response);
+                         "Response-Code : " + urlConnection.getResponseCode() + " Message : " + IOUtils.toString(response));
             }
 
         } catch (IOException e ) {
