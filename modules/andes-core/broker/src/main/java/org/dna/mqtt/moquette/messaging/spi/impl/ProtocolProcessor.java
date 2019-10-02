@@ -240,10 +240,6 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
             forciblyClosedChannels.put(msg.getClientID(), oldSession);
         }
 
-        String clientId = msg.getClientID();
-        if(isMqttConnectivityStatsPublishing) {
-            notifyClientState(clientId, "ACTIVE");
-        }
         ConnectionDescriptor connDescr = new ConnectionDescriptor(msg.getClientID(), session, msg.isCleanSession());
         m_clientIDs.put(msg.getClientID(), connDescr);
 
@@ -302,6 +298,12 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
                     return;
                 }
             }
+        }
+
+        //Having this block here will ensure that status will be updated for only authenticated messages.
+        String clientId = msg.getClientID();
+        if(isMqttConnectivityStatsPublishing) {
+            notifyClientState(clientId, "ACTIVE");
         }
 
         authSubjects.put(msg.getClientID(), authSubject);
