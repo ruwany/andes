@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dna.mqtt.wso2.AndesMQTTBridge;
 import org.dna.mqtt.wso2.QOSLevel;
+import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.SubscriptionAlreadyExistsException;
@@ -39,6 +40,7 @@ import java.util.UUID;
 
 import static org.dna.mqtt.wso2.AndesMQTTBridge.SubscriptionEvent;
 import static org.dna.mqtt.wso2.AndesMQTTBridge.getBridgeInstance;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION;
 
 /**
  * Will manage and hold topic information,
@@ -76,6 +78,11 @@ public class MQTTopicManager {
     private final Set<Integer> messageIdList = new LinkedHashSet<>();
 
     /**
+     * MQTT Connectivity Status Publishing enable/disable
+     */
+    private boolean isMqttConnectivityStatsPublishing;
+
+    /**
      * The class will be declared as singleton since the state will be centralized
      * <p><b>Note:</b> The constrictor will also initialize the values of the message ids a channel could have</p>
      */
@@ -104,6 +111,7 @@ public class MQTTopicManager {
         if (null == mqttAndesConnectingBridge) {
             mqttAndesConnectingBridge = mqttAndesConnection;
             log.info("MQTT andes connecting bridge initialized successfully");
+            isMqttConnectivityStatsPublishing = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION);
         } else {
             final String error = "Attempting to initialize the bridge more than once, there cannot be more than " +
                     "one bridge instance";
@@ -219,6 +227,10 @@ public class MQTTopicManager {
             SubscriptionEvent action) throws MQTTException {
 
         log.info("Disconnecting channel for clientID: " + mqttClientChannelID);
+
+        if(isMqttConnectivityStatsPublishing) {
+            MQTTUtils.notifyClientState(mqttClientChannelID, "INACTIVE");
+        }
 
         Collection<MQTTSubscription> topicSubscriptionList;
         MQTTopics mqtTopics = topicSubscriptions.get(mqttClientChannelID);

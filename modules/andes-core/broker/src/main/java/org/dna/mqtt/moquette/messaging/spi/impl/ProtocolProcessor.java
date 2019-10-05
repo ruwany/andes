@@ -78,8 +78,6 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     private IAuthenticator m_authenticator;
     private IAuthorizer m_authorizer;
 
-    ExecutorService executor;
-
     /**
      * Keeps client data in memory for authorization of publishing and subscribing later. <ClientID, AuthData>
      */
@@ -121,8 +119,6 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
     void init(SubscriptionsStore subscriptions, IStorageService storageService,
               IAuthenticator authenticator) {
         //m_clientIDs = clientIDs;
-        //TODO: Get executor Threadpool Size from Config
-        executor = Executors.newFixedThreadPool(50);
         this.subscriptions = subscriptions;
         m_authenticator = authenticator;
         m_storageService = storageService;
@@ -303,7 +299,7 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         //Having this block here will ensure that status will be updated for only authenticated messages.
         String clientId = msg.getClientID();
         if(isMqttConnectivityStatsPublishing) {
-            notifyClientState(clientId, "ACTIVE");
+            MQTTUtils.notifyClientState(clientId, "ACTIVE");
         }
 
         authSubjects.put(msg.getClientID(), authSubject);
@@ -331,32 +327,6 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
         if (!msg.isCleanSession()) {
             //force the republish of stored QoS1 and QoS2
             republishStored(msg.getClientID());
-        }
-    }
-
-    private void notifyClientState(String clientId, String state) {
-        //Reference Client ID : <prefix>/<tenant_domain>/<device_type>/<device_identifier>
-        //TODO: Obtain prefix from config
-        String prefix = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX);
-        if(clientId.startsWith(prefix)){
-            String[] clientInfo = clientId.split("/");
-            if(clientInfo.length >= 4){
-                String tenantDomain = clientInfo[1];
-                String deviceType = clientInfo[2];
-                String deviceId = clientInfo[3];
-
-                //TODO : Make Async Call to Backend Picked up from Config
-                String url = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL);
-                String username = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME);
-                String password = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD);
-                executor.submit(new AsyncHTTPStatusPublisher(url, tenantDomain, deviceType, deviceId, state, username, password));
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Supplied Client ID does not match desired template " +
-                              "expected : <prefix>/<tenant_domain>/<device_type>/<device_identifier> received : " + clientId);
-                }
-            }
-
         }
     }
 
@@ -769,9 +739,9 @@ public class ProtocolProcessor implements EventHandler<ValueEvent>, PubAckHandle
 
     void processDisconnect(ServerChannel session, String clientID, boolean cleanSession) throws InterruptedException {
 
-        if(isMqttConnectivityStatsPublishing) {
-            notifyClientState(clientID, "INACTIVE");
-        }
+//        if(isMqttConnectivityStatsPublishing) {
+//            MQTTUtils.notifyClientState(clientID, "INACTIVE");
+//        }
         String username = authSubjects.get(clientID).getUsername();
         removeAuthorizationSubject(clientID);
 

@@ -20,9 +20,11 @@ package org.wso2.andes.mqtt.utils;
 import io.netty.channel.Channel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.dna.mqtt.moquette.messaging.spi.impl.publishers.http.AsyncHTTPStatusPublisher;
 import org.dna.mqtt.moquette.messaging.spi.impl.subscriptions.SubscriptionsStore;
 import org.dna.mqtt.moquette.proto.messages.AbstractMessage;
 import org.dna.mqtt.wso2.QOSLevel;
+import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.kernel.AndesConstants;
 import org.wso2.andes.kernel.AndesContent;
 import org.wso2.andes.kernel.AndesException;
@@ -36,6 +38,13 @@ import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL;
+import static org.wso2.andes.configuration.enums.AndesConfiguration.TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME;
 
 /**
  * This class will contain operations such as conversion of message which are taken from the protocol to be compliant
@@ -65,6 +74,8 @@ public class MQTTUtils {
      * MQTT Publisher ID
      */
     public static final String CLIENT_ID = "clientID";
+
+    public static ExecutorService statusPublishExecutor = Executors.newFixedThreadPool(50);
 
     /**
      * The published messages will be taken in as a byte stream, the message will be transformed into AndesMessagePart as
@@ -294,6 +305,33 @@ public class MQTTUtils {
         }
 
         return durable;
+    }
+
+
+    public static void notifyClientState(String clientId, String state) {
+        //Reference Client ID : <prefix>/<tenant_domain>/<device_type>/<device_identifier>
+        //TODO: Obtain prefix from config
+        String prefix = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PREFIX);
+        if(clientId.startsWith(prefix)){
+            String[] clientInfo = clientId.split("/");
+            if(clientInfo.length >= 4){
+                String tenantDomain = clientInfo[1];
+                String deviceType = clientInfo[2];
+                String deviceId = clientInfo[3];
+
+                //TODO : Make Async Call to Backend Picked up from Config
+                String url = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_URL);
+                String username = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_USERNAME);
+                String password = AndesConfigurationManager.readValue(TRANSPORTS_MQTT_CONNECTIVITY_NOTIFICATION_PASSWORD);
+                statusPublishExecutor.submit(new AsyncHTTPStatusPublisher(url, tenantDomain, deviceType, deviceId, state, username, password));
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Supplied Client ID does not match desired template " +
+                              "expected : <prefix>/<tenant_domain>/<device_type>/<device_identifier> received : " + clientId);
+                }
+            }
+
+        }
     }
 
 }
